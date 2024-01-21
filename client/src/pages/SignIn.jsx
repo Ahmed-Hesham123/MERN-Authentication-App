@@ -7,6 +7,7 @@ import {
   signInSuccess,
 } from "../redux/user/userSlice";
 import { useDispatch, useSelector } from "react-redux";
+import OAuth from "../components/OAuth";
 
 const SignIn = () => {
   const [formData, setFormData] = useState({});
@@ -59,7 +60,7 @@ const SignIn = () => {
         <Button disabled={loading} bgColor="bg-slate-700" type="submit">
           {loading ? "Loading..." : "Sign In"}
         </Button>
-        {/* <Button bgColor="bg-red-700">Continue With Google</Button> */}
+        <OAuth />
       </form>
       <div className="flex gap-2 mt-5">
         <p>Don&#39;t have an account?</p>
