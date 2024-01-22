@@ -22,22 +22,34 @@ const Profile = () => {
     }
   }, [image]);
   const handleFileUpload = async (image) => {
+    const maxSizeMB = 2;
+    if (image.size / (1024 * 1024) > maxSizeMB) {
+      console.error(`File size exceeds ${maxSizeMB} MB`);
+      setImageError(true);
+      return;
+    }
     const storage = getStorage(app);
     const fileName = new Date().getTime() + image.name;
     const storageRef = ref(storage, fileName);
     const uploadTask = uploadBytesResumable(storageRef, image);
-    uploadTask.on("state_changed", (snapshot) => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      setImagePercent(Math.round(progress));
-    });
-    (error) => {
-      setImageError(true);
-    };
-    () => {
-      getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-        setFormData({ ...formData, profilePicture: downloadURL });
-      });
-    };
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setImagePercent(Math.round(progress));
+      },
+      (error) => {
+        console.error("Error uploading image:", error);
+        setImageError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          setFormData({ ...formData, profilePicture: downloadURL });
+        });
+      }
+    );
   };
   const handleChange = (e) => {};
   const handleUpdate = (e) => {};
@@ -59,7 +71,7 @@ const Profile = () => {
                 request.resource.contentType.matches('image/.*')
         */}
         <img
-          src={currentUser.profilePicture}
+          src={formData.profilePicture || currentUser.profilePicture}
           alt="profile"
           className="h-24 w-24 rounded-full self-center cursor-pointer object-cover mt-2"
           onClick={() => fileRef.current.click()}
