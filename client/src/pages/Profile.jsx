@@ -1,4 +1,4 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Button from "../components/Button";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -8,6 +8,11 @@ import {
   uploadBytesResumable,
 } from "firebase/storage";
 import { app } from "../firebase";
+import {
+  updateUserFailure,
+  updateUserStart,
+  updateUserSuccess,
+} from "../redux/user/userSlice";
 
 const Profile = () => {
   const fileRef = useRef(null);
@@ -15,7 +20,10 @@ const Profile = () => {
   const [imagePercent, setImagePercent] = useState(0);
   const [imageError, setImageError] = useState(false);
   const [formData, setFormData] = useState({});
-  const { currentUser, loading } = useSelector((state) => state.user);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+
+  const { currentUser, loading, error } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
   useEffect(() => {
     if (image) {
       handleFileUpload(image);
@@ -27,36 +35,62 @@ const Profile = () => {
       console.error(`File size exceeds ${maxSizeMB} MB`);
       setImageError(true);
       return;
+    } else {
+      const storage = getStorage(app);
+      const fileName = new Date().getTime() + image.name;
+      const storageRef = ref(storage, fileName);
+      const uploadTask = uploadBytesResumable(storageRef, image);
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setImagePercent(Math.round(progress));
+        },
+        (error) => {
+          setImageError(true);
+        },
+        () => {
+          setImageError(false);
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) =>
+            setFormData((prevData) => ({
+              ...prevData,
+              profilePicture: downloadURL,
+            }))
+          );
+        }
+      );
     }
-    const storage = getStorage(app);
-    const fileName = new Date().getTime() + image.name;
-    const storageRef = ref(storage, fileName);
-    const uploadTask = uploadBytesResumable(storageRef, image);
-
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setImagePercent(Math.round(progress));
-      },
-      (error) => {
-        console.error("Error uploading image:", error);
-        setImageError(true);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          setFormData({ ...formData, profilePicture: downloadURL });
-        });
-      }
-    );
   };
-  const handleChange = (e) => {};
-  const handleUpdate = (e) => {};
+  const handleChange = (e) => {
+    setFormData((prevData) => ({ ...prevData, [e.target.id]: e.target.value }));
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (data.success === false) {
+        dispatch(updateUserFailure(data));
+        return;
+      }
+      dispatch(updateUserSuccess(data));
+      setUpdateSuccess(true);
+    } catch (error) {
+      dispatch(updateUserFailure(error));
+    }
+  };
   return (
     <div className="mx-auto p-3 max-w-lg">
       <h1 className="text-center text-3xl font-semibold my-7">Profile</h1>
-      <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="file"
           ref={fileRef}
@@ -112,14 +146,18 @@ const Profile = () => {
           className="bg-slate-100 rounded-lg p-3"
           onChange={handleChange}
         />
-        <Button disabled={loading} bgColor="bg-slate-700" type="submit">
+        <Button disabled={loading} bgColor="bg-slate-700">
           {loading ? "Loading..." : "Update"}
         </Button>
       </form>
       <div className="flex justify-between mt-5">
         <span className="text-red-700 cursor-pointer">Delete Account</span>
-        <span className="text-red-700 cursor-pointer">Sign Up</span>
+        <span className="text-red-700 cursor-pointer">Sign Out</span>
       </div>
+      <p className="text-red-700 mt-5">{error && "Something went wrong!"}</p>
+      <p className="text-green-700 mt-5">
+        {updateSuccess && "User is updated successfully!"}
+      </p>
     </div>
   );
 };
