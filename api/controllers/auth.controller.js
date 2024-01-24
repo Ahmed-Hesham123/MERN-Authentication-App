@@ -42,7 +42,7 @@ export const google = async (req, res, next) => {
       const { password: hashedPassword, ...rest } = user._doc;
       const expiryDate = new Date(Date.now() + 3600000); // 1 hour
       res
-        .cookie('access_token', token, {
+        .cookie("access_token", token, {
           httpOnly: true,
           expires: expiryDate,
         })
@@ -55,7 +55,7 @@ export const google = async (req, res, next) => {
       const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
       const newUser = new User({
         username:
-          req.body.name.split(' ').join('').toLowerCase() +
+          req.body.name.split(" ").join("").toLowerCase() +
           Math.random().toString(36).slice(-8),
         email: req.body.email,
         password: hashedPassword,
@@ -66,7 +66,7 @@ export const google = async (req, res, next) => {
       const { password: hashedPassword2, ...rest } = newUser._doc;
       const expiryDate = new Date(Date.now() + 3600000); // 1 hour
       res
-        .cookie('access_token', token, {
+        .cookie("access_token", token, {
           httpOnly: true,
           expires: expiryDate,
         })
@@ -76,4 +76,9 @@ export const google = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// sign out
+export const signout = (req, res) => {
+  res.clearCookie("access_token").status(200).json("Signout Success!");
 };
